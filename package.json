@@ -1,0 +1,24 @@
+{
+  "name": "wfc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dguerr15/WFC.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Dguerr15/WFC/issues"
+  },
+  "homepage": "https://github.com/Dguerr15/WFC#readme",
+  "dependencies": {
+    "phaser": "^3.90.0"
+  }
+}
