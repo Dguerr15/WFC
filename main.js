@@ -190,25 +190,7 @@ function runSingleWFCStep() {
 /**
  * Phaser-based loop to run the WFC step-by-step for visualization.
  */
-function wfcLoop() {
-    if (scene.wfcStatus === 'RUNNING') {
-        const result = runSingleWFCStep();
-        drawGrid(); // Update the view after every step
 
-        if (result === 'FINISHED') {
-            scene.wfcStatus = 'FINISHED';
-            scene.statusText.setText(`Status: Generation COMPLETE!`);
-            wfcLoopTimer.paused = true; // Stop the timer
-        } else if (result === 'CONTRADICTION') {
-            scene.wfcStatus = 'CONTRADICTION';
-            scene.statusText.setText(`Status: CONTRADICTION! Generation failed.`);
-            wfcLoopTimer.paused = true; // Stop the timer
-        } else {
-            // Continue running
-            scene.statusText.setText(`Status: Running... Entropy: ${getGridEntropy()}`);
-        }
-    }
-}
 
 
 /**
@@ -277,7 +259,6 @@ function drawGrid() {
     }
 }
 
-
 /**
  * Initializes or resets the grid, setting all cells to max entropy (all possible tiles).
  */
@@ -295,9 +276,106 @@ function initializeGrid() {
     scene.statusText.setText(`Status: Forced Seed (Water, E-Edge, S-Edge). Starting WFC...`);
     drawGrid();
 }
+// ...existing code...
+
+function wfcLoop() {
+    if (!scene) return;
+    // only run when in RUNNING state
+    if (scene.wfcStatus !== 'RUNNING') return;
+
+    try {
+        const result = runSingleWFCStep();
+        drawGrid();
+
+
+    if (result === 'FINISHED') {
+            scene.wfcStatus = 'FINISHED';
+            scene.statusText.setText('Status: Generation COMPLETE!');
+            if (wfcLoopTimer) wfcLoopTimer.paused = true;
+            // optional post-processing (trees, etc)
+            if (typeof placeTrees === 'function') placeTrees({ density: 0.08 });
+            console.log('WFC: finished successfully.');
+            return;
+        }
+
+        if (result === 'CONTRADICTION') {
+            console.warn('WFC: contradiction detected. Will restart generation.');
+            scene.wfcStatus = 'CONTRADICTION';
+            scene.statusText.setText('Status: CONTRADICTION — restarting...');
+            if (wfcLoopTimer) wfcLoopTimer.paused = true;
+            // auto-restart after short delay so you can see the message
+            setTimeout(() => {
+                if (scene && typeof scene.resetAndStart === 'function') {
+                    scene.resetAndStart();
+                }
+            }, 400);
+            return;
+        }
+
+        // still running
+        scene.statusText.setText(`Status: Running... Entropy: ${getGridEntropy()}`);
+    } catch (err) {
+        console.error('WFC loop threw an error:', err);
+        // pause to avoid busy error loop; allow manual restart or auto-restart if desired
+        if (wfcLoopTimer) wfcLoopTimer.paused = true;
+        scene.statusText.setText('Status: Error — check console');
+    }
+}
+
+function isLandTileAt(x, y) {
+    // Only place trees on collapsed tiles (one possibility) and where the rendered sprite looks like dirt/land.
+    if (!scene || !scene.tiles || !scene.tiles[y] || !scene.tiles[y][x]) return false;
+    const sprite = scene.tiles[y][x];
+    if (!sprite.visible) return false; // not drawn yet
+    const key = (sprite.texture && sprite.texture.key) ? String(sprite.texture.key).toLowerCase() : '';
+
+    // Common substrings that indicate a land/dirt tile in your assets.
+    const LAND_KEY_SUBSTRINGS = ['dirt', 'land', 'soil', 'ground', 'maptile', 'map_tile', 'tile'];
+    for (const sub of LAND_KEY_SUBSTRINGS) {
+        if (key.includes(sub)) return true;
+    }
+
+    // fallback: if the cell is collapsed and not water-ish (you can add water substrings here)
+    const possibilities = grid[y][x];
+    if (Array.isArray(possibilities) && possibilities.length === 1) {
+        // if you have a list of water IDs/names, check and return false for them:
+        // const WATER_SUBSTRINGS = ['water','sea','ocean'];
+        // if (WATER_SUBSTRINGS.some(w => key.includes(w))) return false;
+        return true;
+    }
+    return false;
+}
+
+function placeTrees({ density = 0.05 } = {}) {
+    if (!scene || !scene.treeGroup) return;
+    // clear existing trees
+    scene.treeGroup.clear(true, true);
+
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+        for (let x = 0; x < MAP_WIDTH; x++) {
+            const possibilities = grid[y][x];
+            if (!Array.isArray(possibilities) || possibilities.length !== 1) continue; // only on collapsed tiles
+
+            if (!isLandTileAt(x, y)) continue;
+
+            if (Math.random() < density) {
+                const tx = x * TILE_WIDTH + TILE_WIDTH / 2;
+                const ty = y * TILE_HEIGHT + TILE_HEIGHT / 2;
+                const tree = scene.add.image(tx, ty, 'tree');
+                tree.setOrigin(0.5);
+                tree.setDepth(1); // above tiles
+                tree.setScale(0.6 + Math.random() * 0.6);
+                tree.setRotation((Math.random() - 0.5) * 0.25);
+                // small random offset so trees don't look grid-aligned
+                tree.x += (Math.random() - 0.5) * (TILE_WIDTH * 0.3);
+                tree.y += (Math.random() - 0.5) * (TILE_HEIGHT * 0.2);
+                scene.treeGroup.add(tree);
+            }
+        }
+    }
+}
 
 // --- Phaser Scene ---
-
 class WFCScene extends Phaser.Scene {
     constructor() {
         super({ key: 'WFCScene' });
@@ -317,6 +395,19 @@ class WFCScene extends Phaser.Scene {
             this.load.image(tile.assetKey, path);
             console.log(`Loading tile: ${tile.assetKey} from ${path}`);
         });
+        this.load.image('tree', `${baseUrl}tree.png`);
+        console.log(`enqueue tree load: tree <- ${baseUrl}tree.png`);
+
+    // debug: report when each file finishes loading
+    this.load.on('filecomplete', (key, type, data) => {
+        console.log(`filecomplete: key=${key} type=${type}`);
+    });
+
+    // debug: report when the whole loader finishes
+    this.load.on('complete', () => {
+        console.log('loader complete. textures:', Object.keys(this.textures.list));
+        console.log('tree texture exists?', this.textures.exists('tree'));
+    });
     }
 
     create() {
@@ -341,7 +432,9 @@ class WFCScene extends Phaser.Scene {
                 this.tiles[y][x] = sprite;
             }
         }
-        
+        // Tree group (decorative overlay)
+        this.treeGroup = this.add.group();
+
         // Setup Status Text (Top Left)
         this.statusText = this.add.text(10, 10, 'Status: Initializing...', { 
             fontFamily: 'Inter', 
@@ -381,6 +474,11 @@ class WFCScene extends Phaser.Scene {
         
         // Resume the step-by-step loop
         wfcLoopTimer.paused = false;
+
+        // Clear any previously placed trees
+        if (this.treeGroup) {
+            this.treeGroup.clear(true, true);
+        }
     }
 }
 
