@@ -1,7 +1,7 @@
 // --- Game Configuration Constants ---
 // Map dimensions: 20 tiles wide x 15 tiles tall
-export const TILE_WIDTH = 32;
-export const TILE_HEIGHT = 32;
+export const TILE_WIDTH = 64;
+export const TILE_HEIGHT = 64;
 export const MAP_WIDTH = 20;
 export const MAP_HEIGHT = 15;
 export const GAME_WIDTH = MAP_WIDTH * TILE_WIDTH;
