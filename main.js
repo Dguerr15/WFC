@@ -12,22 +12,19 @@ import {
     MUSHROOM_ASSET_KEY 
 } from './gameConfig.js';
 
-// --- Global Variables ---
+// Global Variables
 let grid;
 let scene;
 let graphics;
 let wfcLoopTimer;
-let tilesWithTrees = []; // <--- NEW GLOBAL VARIABLE to track tree positions
+let tilesWithTrees = []; 
 
 // The ID for the DIRT_CENTER tile, used for precise placement of trees.
 const DIRT_CENTER_ID = TILES.DIRT_CENTER.id;
 
-// --- Core WFC Functions ---
+// Core WFC Functions
 
-/**
- * Finds the cell with the minimum entropy (fewest possibilities > 1) and collapses it.
- * @returns {object|string} The coordinates {x, y} of the collapsed cell, or 'FINISHED'/'CONTRADICTION'.
- */
+// Finds the cell with the minimum entropy and collapses it.
 function observe() {
     let minEntropy = Infinity;
     let candidates = [];
@@ -62,12 +59,7 @@ function observe() {
     return targetCell;
 }
 
-/**
- * Core propagation step: Enforces constraints and cascades reductions using a queue.
- * @param {number} sx - Source X coordinate of the newly collapsed cell.
- * @param {number} sy - Source Y coordinate of the newly collapsed cell.
- * @returns {boolean} True if no contradiction, false if contradiction found.
- */
+// Core propagation step Enforces constraints and cascades reductions using a queue.
 function propagate(sx, sy) {
     const queue = [{ x: sx, y: sy }];
     const neighborDirections = [
@@ -99,6 +91,7 @@ function propagate(sx, sy) {
             const allowedPossibilities = new Set();
             const reciprocalDir = reciprocalMap[sourceDir];
 
+            // Iterate through the source tile possibilities and find compatible neighbor tiles
             for (const sId of sourcePossibilities) {
                 const sourceRules = TILE_RULES[sId];
                 const requiredBySource = sourceRules[sourceDir]; 
@@ -133,10 +126,7 @@ function propagate(sx, sy) {
     return true;
 }
 
-/**
- * Runs one complete step of the WFC algorithm (Observe then Propagate).
- * @returns {string} Status ('CONTINUE', 'FINISHED', or 'CONTRADICTION').
- */
+// Runs one complete step of the WFC algorithm Observe then Propagate.
 function runSingleWFCStep() {
     const observationResult = observe();
 
@@ -154,10 +144,7 @@ function runSingleWFCStep() {
     return 'CONTINUE';
 }
 
-/**
- * Calculates the total entropy (sum of possibility counts) remaining in the grid.
- * @returns {number} The total entropy of the grid.
- */
+// Calculates the total entropy remaining in the grid.
 function getGridEntropy() {
     let entropy = 0;
     for (let y = 0; y < MAP_HEIGHT; y++) {
@@ -168,11 +155,9 @@ function getGridEntropy() {
     return entropy;
 }
 
-// --- Rendering and Game Setup ---
+// Rendering and Game Setup
 
-/**
- * Clears and draws the current state of the WFC grid to the Phaser canvas.
- */
+// Clears and draws the current state of the WFC grid to the Phaser canvas.
 function drawGrid() {
     graphics.clear(); 
 
@@ -197,6 +182,7 @@ function drawGrid() {
                 graphics.fillRect(px, py, TILE_WIDTH, TILE_HEIGHT);
 
             } else {
+                // Visualize uncollapsed cells based on entropy
                 const entropyRatio = Math.min(1, count / INITIAL_POSSIBILITIES.length);
                 const colorValue = Phaser.Display.Color.Interpolate.ColorWithColor(
                     new Phaser.Display.Color(0x374151), 
@@ -215,9 +201,7 @@ function drawGrid() {
     }
 }
 
-/**
- * Initializes or resets the grid, setting all cells to max entropy (all possible tiles).
- */
+// Initializes or resets the grid setting all cells to max entropy.
 function initializeGrid() {
     grid = [];
     for (let y = 0; y < MAP_HEIGHT; y++) {
@@ -231,9 +215,7 @@ function initializeGrid() {
     drawGrid();
 }
 
-/**
- * Executes a single step of the WFC loop, handles results, and manages the timer.
- */
+// Executes a single step of the WFC loop, handles results, and manages the timer.
 function wfcLoop() {
     if (!scene || scene.wfcStatus !== 'RUNNING') return;
 
@@ -246,10 +228,10 @@ function wfcLoop() {
             scene.statusText.setText('Status: Generation COMPLETE!');
             if (wfcLoopTimer) wfcLoopTimer.paused = true;
             
-            // Note: Trees are placed first, and their positions are recorded.
-            if (typeof placeTrees === 'function') placeTrees({ density: 0.5 });
+            // Trees are placed first and their positions are recorded
+            placeTrees({ density: 0.5 });
             
-            // Mushrooms are placed second, avoiding tree positions.
+            // Mushrooms are placed second avoiding tree positions
             placeMushrooms({ density: 0.1 }); 
             
             console.log('WFC: finished successfully.');
@@ -277,29 +259,20 @@ function wfcLoop() {
     }
 }
 
-/**
- * Checks if the specified grid cell is collapsed to the DIRT_CENTER tile ID.
- * @param {number} x - X coordinate of the cell.
- * @param {number} y - Y coordinate of the cell.
- * @returns {boolean} True if the cell is collapsed to DIRT_CENTER, false otherwise.
- */
+// Checks if the specified grid cell is collapsed to the DIRT_CENTER tile ID.
 function isDirtCenterTile(x, y) {
     const possibilities = grid[y][x];
-    // Check if the cell is collapsed AND if the single tile ID matches the DIRT_CENTER_ID (which is 1).
+    // Check if the cell is collapsed and if the single tile ID matches the DIRT_CENTER_ID (which is 1).
     return Array.isArray(possibilities) && 
            possibilities.length === 1 && 
            possibilities[0] === DIRT_CENTER_ID;
 }
 
-/**
- * Places 'tree' sprites randomly on tiles that are determined to be DIRT_CENTER.
- * @param {object} options - Configuration object.
- * @param {number} options.density - The probability (0.0 to 1.0) of a tree being placed on an allowed tile.
- */
+// Places 'tree' sprites randomly on tiles that are determined to be DIRT_CENTER.
 function placeTrees({ density = 0.05 } = {}) {
     if (!scene || !scene.treeGroup) return;
     scene.treeGroup.clear(true, true);
-    tilesWithTrees = []; // <--- RESET tree positions list
+    tilesWithTrees = []; // Reset tree positions list
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
         for (let x = 0; x < MAP_WIDTH; x++) {
@@ -308,7 +281,7 @@ function placeTrees({ density = 0.05 } = {}) {
 
             if (Math.random() < density) {
                 // Record the tree's position
-                tilesWithTrees.push(`${x},${y}`); // <--- RECORDING POSITION
+                tilesWithTrees.push(`${x},${y}`); 
                 
                 const tx = x * TILE_WIDTH + TILE_WIDTH / 2;
                 const ty = y * TILE_HEIGHT + TILE_HEIGHT / 2;
@@ -316,15 +289,13 @@ function placeTrees({ density = 0.05 } = {}) {
                 tree.setOrigin(0.5);
                 tree.setDepth(1); 
                 tree.setScale(0.6 + Math.random() * 0.6);
-                tree.setRotation((Math.random() - 0.5) * 0.25);
-                tree.x += (Math.random() - 0.5) * (TILE_WIDTH * 0.3);
-                tree.y += (Math.random() - 0.5) * (TILE_HEIGHT * 0.2);
                 scene.treeGroup.add(tree);
             }
         }
     }
 }
 
+// Places 'mushroom' sprites randomly on non-water tiles that do not contain a tree.
 function placeMushrooms({ density = 0.1 } = {}) {
     if (!scene || !scene.mushroomGroup) return;
     // Clear existing mushrooms
@@ -337,13 +308,13 @@ function placeMushrooms({ density = 0.1 } = {}) {
         for (let x = 0; x < MAP_WIDTH; x++) {
             
             // Check for existing tree at this cell
-            if (treePositions.has(`${x},${y}`)) { // <--- CHECK FOR TREE
+            if (treePositions.has(`${x},${y}`)) { 
                 continue; 
             }
             
             const possibilities = grid[y][x];
             
-            // Check if the cell is collapsed AND if the single tile ID is NOT WATER
+            // Check if the cell is collapsed and if the single tile ID is NOT water
             const isNonWaterTile = Array.isArray(possibilities) && 
                                    possibilities.length === 1 && 
                                    possibilities[0] !== WATER_ID;
@@ -363,11 +334,10 @@ function placeMushrooms({ density = 0.1 } = {}) {
     }
 }
 
-// --- Phaser Scene ---
-/**
- * Main Phaser Scene class for managing the game state, assets, and WFC process.
- */
+// Phaser Scene
+// Main Phaser Scene class for managing the game state, assets, and WFC process.
 class WFCScene extends Phaser.Scene {
+    // Constructor initializes scene state variables.
     constructor() {
         super({ key: 'WFCScene' });
         this.wfcStatus = 'READY'; 
@@ -375,37 +345,25 @@ class WFCScene extends Phaser.Scene {
         this.statusText = null; 
     }
 
-    /**
-     * Loads all required tile assets and the 'tree' asset.
-     */
+    // Loads all required tile assets, tree, and mushroom assets.
     preload() {
         const baseUrl = './TILES/'; 
         
         Object.values(TILES).forEach(tile => {
             const path = `${baseUrl}${tile.assetKey}.png`;
             this.load.image(tile.assetKey, path);
-            console.log(`Loading tile: ${tile.assetKey} from ${path}`);
         });
         this.load.image('tree', `${baseUrl}tree.png`);
-        console.log(`enqueue tree load: tree <- ${baseUrl}tree.png`);
         
         this.load.image('mushroom', `${baseUrl}${MUSHROOM_ASSET_KEY}.png`); 
-        console.log(`enqueue mushroom load: mushroom <- ${baseUrl}${MUSHROOM_ASSET_KEY}.png`);
 
-        this.load.on('filecomplete', (key, type, data) => {
-            console.log(`filecomplete: key=${key} type=${type}`);
-        });
-
+        // Log asset loading status
         this.load.on('complete', () => {
             console.log('loader complete. textures:', Object.keys(this.textures.list));
-            console.log('tree texture exists?', this.textures.exists('tree'));
-            console.log('mushroom texture exists?', this.textures.exists('mushroom'));
         });
     }
 
-    /**
-     * Creates the scene's objects, initializes the grid, and sets up input/timers.
-     */
+    // Creates the scene's objects, initializes the grid, and sets up input/timers.
     create() {
         scene = this;
         this.cameras.main.setBackgroundColor('#1f2937');
@@ -450,9 +408,7 @@ class WFCScene extends Phaser.Scene {
         });
     }
     
-    /**
-     * Resets the WFC grid and starts a new generation loop.
-     */
+    // Resets the WFC grid and starts a new generation loop.
     resetAndStart() {
         if (wfcLoopTimer) {
             wfcLoopTimer.paused = true;
@@ -475,10 +431,8 @@ class WFCScene extends Phaser.Scene {
     }
 }
 
-// --- Phaser Game Configuration ---
-/**
- * Configuration object for the Phaser game instance.
- */
+// Phaser Game Configuration
+// Configuration object for the Phaser game instance.
 const config = {
     type: Phaser.AUTO,
     width: GAME_WIDTH,
@@ -500,9 +454,7 @@ const config = {
     }
 };
 
-/**
- * Initializes and starts the Phaser game when the window loads.
- */
+// Initializes and starts the Phaser game when the window loads.
 window.addEventListener('load', () => {
     new Phaser.Game(config);
 });
