@@ -6,6 +6,7 @@ export const MAP_WIDTH = 20;
 export const MAP_HEIGHT = 15;
 export const GAME_WIDTH = MAP_WIDTH * TILE_WIDTH;
 export const GAME_HEIGHT = MAP_HEIGHT * TILE_HEIGHT;
+export const MUSHROOM_ASSET_KEY = 'mapTile_104'; 
 
 // --- Asset Configuration ---
 // Each assetKey MUST match the filename in your local 'TILES/' folder (e.g., TILES/mapTile_171.png)

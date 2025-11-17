@@ -8,7 +8,8 @@ import {
     TILES, 
     TILE_IDS, 
     INITIAL_POSSIBILITIES, 
-    TILE_RULES 
+    TILE_RULES,
+    MUSHROOM_ASSET_KEY 
 } from './gameConfig.js';
 
 // --- Global Variables ---
@@ -16,6 +17,7 @@ let grid;
 let scene;
 let graphics;
 let wfcLoopTimer;
+let tilesWithTrees = []; // <--- NEW GLOBAL VARIABLE to track tree positions
 
 // The ID for the DIRT_CENTER tile, used for precise placement of trees.
 const DIRT_CENTER_ID = TILES.DIRT_CENTER.id;
@@ -243,7 +245,13 @@ function wfcLoop() {
             scene.wfcStatus = 'FINISHED';
             scene.statusText.setText('Status: Generation COMPLETE!');
             if (wfcLoopTimer) wfcLoopTimer.paused = true;
+            
+            // Note: Trees are placed first, and their positions are recorded.
             if (typeof placeTrees === 'function') placeTrees({ density: 0.5 });
+            
+            // Mushrooms are placed second, avoiding tree positions.
+            placeMushrooms({ density: 0.1 }); 
+            
             console.log('WFC: finished successfully.');
             return;
         }
@@ -291,6 +299,7 @@ function isDirtCenterTile(x, y) {
 function placeTrees({ density = 0.05 } = {}) {
     if (!scene || !scene.treeGroup) return;
     scene.treeGroup.clear(true, true);
+    tilesWithTrees = []; // <--- RESET tree positions list
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
         for (let x = 0; x < MAP_WIDTH; x++) {
@@ -298,6 +307,9 @@ function placeTrees({ density = 0.05 } = {}) {
             if (!isDirtCenterTile(x, y)) continue;
 
             if (Math.random() < density) {
+                // Record the tree's position
+                tilesWithTrees.push(`${x},${y}`); // <--- RECORDING POSITION
+                
                 const tx = x * TILE_WIDTH + TILE_WIDTH / 2;
                 const ty = y * TILE_HEIGHT + TILE_HEIGHT / 2;
                 const tree = scene.add.image(tx, ty, 'tree');
@@ -308,6 +320,44 @@ function placeTrees({ density = 0.05 } = {}) {
                 tree.x += (Math.random() - 0.5) * (TILE_WIDTH * 0.3);
                 tree.y += (Math.random() - 0.5) * (TILE_HEIGHT * 0.2);
                 scene.treeGroup.add(tree);
+            }
+        }
+    }
+}
+
+function placeMushrooms({ density = 0.1 } = {}) {
+    if (!scene || !scene.mushroomGroup) return;
+    // Clear existing mushrooms
+    scene.mushroomGroup.clear(true, true); 
+    const treePositions = new Set(tilesWithTrees); // Use a Set for fast lookup
+
+    const WATER_ID = TILES.WATER.id; // Water ID is 0
+
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+        for (let x = 0; x < MAP_WIDTH; x++) {
+            
+            // Check for existing tree at this cell
+            if (treePositions.has(`${x},${y}`)) { // <--- CHECK FOR TREE
+                continue; 
+            }
+            
+            const possibilities = grid[y][x];
+            
+            // Check if the cell is collapsed AND if the single tile ID is NOT WATER
+            const isNonWaterTile = Array.isArray(possibilities) && 
+                                   possibilities.length === 1 && 
+                                   possibilities[0] !== WATER_ID;
+
+            if (!isNonWaterTile) continue;
+
+            if (Math.random() < density) {
+                const tx = x * TILE_WIDTH + TILE_WIDTH / 2;
+                const ty = y * TILE_HEIGHT + TILE_HEIGHT / 2;
+                const mushroom = scene.add.image(tx, ty, 'mushroom');
+                mushroom.setOrigin(0.5);
+                mushroom.setDepth(2); 
+                mushroom.setScale(0.5 + Math.random() * 0.4);
+                scene.mushroomGroup.add(mushroom);
             }
         }
     }
@@ -338,6 +388,9 @@ class WFCScene extends Phaser.Scene {
         });
         this.load.image('tree', `${baseUrl}tree.png`);
         console.log(`enqueue tree load: tree <- ${baseUrl}tree.png`);
+        
+        this.load.image('mushroom', `${baseUrl}${MUSHROOM_ASSET_KEY}.png`); 
+        console.log(`enqueue mushroom load: mushroom <- ${baseUrl}${MUSHROOM_ASSET_KEY}.png`);
 
         this.load.on('filecomplete', (key, type, data) => {
             console.log(`filecomplete: key=${key} type=${type}`);
@@ -346,6 +399,7 @@ class WFCScene extends Phaser.Scene {
         this.load.on('complete', () => {
             console.log('loader complete. textures:', Object.keys(this.textures.list));
             console.log('tree texture exists?', this.textures.exists('tree'));
+            console.log('mushroom texture exists?', this.textures.exists('mushroom'));
         });
     }
 
@@ -372,6 +426,7 @@ class WFCScene extends Phaser.Scene {
             }
         }
         this.treeGroup = this.add.group();
+        this.mushroomGroup = this.add.group();
 
         this.statusText = this.add.text(10, 10, 'Status: Initializing...', { 
             fontFamily: 'Inter', 
@@ -406,10 +461,16 @@ class WFCScene extends Phaser.Scene {
         this.wfcStatus = 'RUNNING';
         initializeGrid();
         
+        // Reset the list of tree positions
+        tilesWithTrees = []; 
+        
         wfcLoopTimer.paused = false;
 
         if (this.treeGroup) {
             this.treeGroup.clear(true, true);
+        }
+        if (this.mushroomGroup) {
+            this.mushroomGroup.clear(true, true);
         }
     }
 }
