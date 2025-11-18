@@ -347,7 +347,7 @@ class WFCScene extends Phaser.Scene {
 
     // Loads all required tile assets, tree, and mushroom assets.
     preload() {
-        const baseUrl = './Tiles/'; 
+        const baseUrl = './TilePNGS/'; 
         
         Object.values(TILES).forEach(tile => {
             const path = `${baseUrl}${tile.assetKey}.png`;
