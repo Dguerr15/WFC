@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WFC Map Generator</title>
-    <!-- BEST PATH GUESS: Local dependency loading from node_modules (assuming index.html is a sibling of node_modules) -->
-    <script src="./node_modules/phaser/dist/phaser.min.js"></script> 
+    <script src="./lib/phaser.js"></script>
     <style>
         /* Base Reset and Layout */
         body { 
@@ -59,11 +58,7 @@
     <div class="controls">
         <p><strong>Controls:</strong> Press the <kbd>R</kbd> key to **R**egenerate the map.</p>
     </div>
-
-    <!-- Load the configuration constants first (as a module) -->
     <script type="module" src="./gameConfig.js"></script>
-    
-    <!-- Load the main game logic, which imports the config -->
     <script type="module" src="./main.js"></script>
 </body>
 </html>

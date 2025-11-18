@@ -229,7 +229,7 @@ function wfcLoop() {
             if (wfcLoopTimer) wfcLoopTimer.paused = true;
             
             // Trees are placed first and their positions are recorded
-            placeTrees({ density: 0.5 });
+            placeTrees({ density: 0.6 });
             
             // Mushrooms are placed second avoiding tree positions
             placeMushrooms({ density: 0.1 }); 
